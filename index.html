@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amies Studio Beauty - Fidelidade</title>
+    <link rel="icon" type="image/png" href="data:image/png;base64,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" />
+    <link rel="apple-touch-icon" href="data:image/png;base64,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" />
+    <meta name="theme-color" content="#1a1a1a">
+    <meta name="description" content="Acompanhe seus pontos de fidelidade, histórico de procedimentos e saldo de cashback (Beauty Coins) no Amies Studio Beauty.">
+    
+    <!-- Google Fonts: Playfair Display (Luxo) e Montserrat (Limpo/Moderno) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <!-- Folha de Estilo -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Container Principal do App -->
+    <main id="app-container">
+        <!-- ==================== TELA DE LOGIN ==================== -->
+        <section id="login-screen" class="screen">
+            <div class="card auth-card">
+                <div class="logo-container">
+                    <!-- Tenta carregar logo.png, senão renderiza o SVG elegante -->
+                    <img id="logo-img" src="logo.png" alt="Amies Studio Beauty" onerror="this.style.display='none'; document.getElementById('logo-svg').style.display='block';">
+                    <svg id="logo-svg" style="display:none;" viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Arte de linha minimalista representando silhueta feminina -->
+                        <path d="M100,20 C115,20 125,30 125,45 C125,55 120,65 110,75 C105,80 100,90 100,100" fill="none" stroke="#b59a76" stroke-width="1.5" stroke-linecap="round"/>
+                        <path d="M90,30 C75,30 65,40 65,55 C65,70 85,85 100,100" fill="none" stroke="#b59a76" stroke-width="1" stroke-linecap="round" opacity="0.6"/>
+                        <!-- Folha orgânica/abstrata por trás -->
+                        <path d="M75,80 C60,60 65,40 85,45 C105,50 110,70 95,90 C85,100 80,95 75,80 Z" fill="#e6ddd2" opacity="0.4"/>
+                        <text x="100" y="112" font-family="'Playfair Display', serif" font-size="18" fill="#4a3c31" text-anchor="middle" font-weight="600" letter-spacing="1">amies</text>
+                    </svg>
+                </div>
+                
+                <h1 class="screen-title">Bem-vinda ao Amies</h1>
+                <p class="screen-subtitle">Consulte seu cashback, pontos e histórico de beleza.</p>
+                <form id="login-form">
+                    <div class="input-group">
+                        <label for="login-username">Nome de Usuário</label>
+                        <input type="text" id="login-username" placeholder="Digite seu usuário" required autocomplete="username">
+                    </div>
+                    <div class="input-group">
+                        <label for="login-password">Senha</label>
+                        <input type="password" id="login-password" placeholder="Digite sua senha" required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+                </form>
+                <div class="auth-footer">
+                    <p>Não tem cadastro? <a href="#" id="go-to-signup">Criar uma conta</a></p>
+                </div>
+            </div>
+        </section>
+        <!-- ==================== TELA DE CADASTRO ==================== -->
+        <section id="signup-screen" class="screen hidden">
+            <div class="card auth-card">
+                <div class="logo-container compact">
+                    <text class="logo-text-compact">amies</text>
+                </div>
+                <h1 class="screen-title">Criar Conta</h1>
+                <p class="screen-subtitle">Inscreva-se no nosso programa de fidelidade.</p>
+                <form id="signup-form">
+                    <div class="input-group">
+                        <label for="signup-name">Nome Completo</label>
+                        <input type="text" id="signup-name" placeholder="Digite seu nome" required autocomplete="name">
+                    </div>
+                    <div class="input-group">
+                        <label for="signup-phone">Telefone (Celular)</label>
+                        <input type="tel" id="signup-phone" placeholder="(11) 99999-9999" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="signup-username">Nome de Usuário</label>
+                        <input type="text" id="signup-username" placeholder="Escolha um nome de usuário" required autocomplete="username">
+                    </div>
+                    <div class="input-group">
+                        <label for="signup-password">Senha</label>
+                        <input type="password" id="signup-password" placeholder="Mínimo 6 dígitos (letras, nº e símbolos)" required autocomplete="new-password">
+                    </div>
+                    <div class="input-group">
+                        <label for="signup-confirm-password">Confirmar Senha</label>
+                        <input type="password" id="signup-confirm-password" placeholder="Repita a senha" required autocomplete="new-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Solicitar Código SMS</button>
+                </form>
+                <div class="auth-footer">
+                    <p>Já tem uma conta? <a href="#" id="go-to-login">Fazer Login</a></p>
+                </div>
+            </div>
+        </section>
+        <!-- ==================== PAINEL DO CLIENTE ==================== -->
+        <section id="client-screen" class="screen hidden">
+            <!-- Header do Cliente -->
+            <header class="app-header">
+                <div class="header-brand">
+                    <span class="header-logo-text">amies</span>
+                    <span class="header-tagline">Loyalty</span>
+                </div>
+                <div class="user-info-header">
+                    <span id="client-display-name">Carregando...</span>
+                    <button id="client-logout" class="btn btn-outline btn-sm">Sair</button>
+                </div>
+            </header>
+            <div class="dashboard-content">
+                <!-- Banner de Bônus Disponível (exibido ao completar 10 pontos) -->
+                <div class="card bonus-banner hidden" id="bonus-ready-banner">
+                    <span class="bonus-banner-icon">🎁</span>
+                    <div class="bonus-banner-text">
+                        <h3>Seu bônus fidelidade está pronto!</h3>
+                        <p>Você completou 10 pontos. Dirija-se à recepção para resgatar seu procedimento bônus.</p>
+                    </div>
+                </div>
+                <!-- Grid de Widgets Superior -->
+                <div class="stats-grid">
+                    <!-- Widget Cashback -->
+                    <div class="card stat-card pulse-hover">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-details">
+                            <h3>Seu Cashback</h3>
+                            <div class="stat-value" id="client-cashback">R$ 0,00</div>
+                            <p class="stat-desc">Disponível em <strong>Beauty Coins</strong></p>
+                        </div>
+                    </div>
+                    <!-- Widget Sessões Totais -->
+                    <div class="card stat-card pulse-hover">
+                        <div class="stat-icon">✨</div>
+                        <div class="stat-details">
+                            <h3>Procedimentos Feitos</h3>
+                            <div class="stat-value" id="client-total-sessions">0</div>
+                            <p class="stat-desc">Cuidados realizados conosco</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Painel do Cartão Fidelidade -->
+                <div class="card loyalty-card-panel">
+                    <div class="loyalty-card-header">
+                        <h2>Meu Cartão Fidelidade</h2>
+                        <span class="badge" id="client-points-badge">0 / 10 Pontos</span>
+                    </div>
+                    <p class="loyalty-card-desc">Ganhe 1 ponto a cada procedimento. Ao completar 10 pontos, você poderá utilizar o bônus para um novo procedimento!</p>
+                    
+                    <!-- Grid Visual do Cartão Fidelidade (10 espaços) -->
+                    <div class="loyalty-dots-grid" id="loyalty-dots-container">
+                        <!-- Gerado via JavaScript: 10 círculos elegantes -->
+                    </div>
+                    <div class="loyalty-progress-container">
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" id="loyalty-progress-bar" style="width: 0%;"></div>
+                        </div>
+                        <span class="progress-text" id="loyalty-progress-text">Faltam 10 pontos para seu bônus!</span>
+                    </div>
+                </div>
+                <!-- Tabela de Histórico -->
+                <div class="card table-card">
+                    <h2>Histórico de Procedimentos</h2>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Procedimento</th>
+                                    <th>Valor</th>
+                                    <th>Cashback Ganho</th>
+                                    <th>Pontos</th>
+                                </tr>
+                            </thead>
+                            <tbody id="client-history-tbody">
+                                <!-- Preenchido via JavaScript -->
+                                <tr>
+                                    <td colspan="5" class="empty-state">Nenhum procedimento registrado ainda.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- Extrato de Resgate de Cashback (estilo extrato bancário) -->
+                <div class="card table-card statement-card">
+                    <h2>Extrato de Cashback</h2>
+                    <p class="statement-subtitle">Acompanhe cada entrada (procedimentos) e saída (resgates feitos na recepção) do seu saldo de Beauty Coins.</p>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Descrição</th>
+                                    <th>Valor</th>
+                                    <th class="text-right">Saldo</th>
+                                </tr>
+                            </thead>
+                            <tbody id="client-ledger-tbody">
+                                <!-- Preenchido via JavaScript -->
+                                <tr>
+                                    <td colspan="4" class="empty-state">Nenhuma movimentação registrada ainda.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- ==================== PAINEL ADMINISTRATIVO (MESTRE) ==================== -->
+        <section id="admin-screen" class="screen hidden">
+            <!-- Header do Administrador -->
+            <header class="app-header admin-header">
+                <div class="header-brand">
+                    <span class="header-logo-text">amies</span>
+                    <span class="badge badge-admin">Master</span>
+                </div>
+                <div class="user-info-header">
+                    <span>Painel Administrativo</span>
+                    <button id="btn-admin-account" class="btn btn-outline btn-sm">🔑 Minha Conta</button>
+                    <button id="admin-logout" class="btn btn-outline btn-sm">Sair</button>
+                </div>
+            </header>
+            <div class="dashboard-content">
+                <!-- Visão Geral de Stats -->
+                <div class="stats-grid admin-stats">
+                    <div class="card stat-card">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-details">
+                            <h3>Total Clientes</h3>
+                            <div class="stat-value" id="admin-stat-clients">0</div>
+                        </div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-icon">🎟️</div>
+                        <div class="stat-details">
+                            <h3>Pontos Ativos</h3>
+                            <div class="stat-value" id="admin-stat-points">0</div>
+                        </div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-icon">🪙</div>
+                        <div class="stat-details">
+                            <h3>Total Cashback</h3>
+                            <div class="stat-value" id="admin-stat-cashback">R$ 0,00</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Tabela de Controle de Clientes -->
+                <div class="card table-card">
+                    <div class="table-header-controls">
+                        <h2>Gerenciamento de Clientes</h2>
+                        <div class="control-actions">
+                            <input type="text" id="admin-search-client" class="input-search" placeholder="Buscar por Nome ou Telefone...">
+                            <button id="btn-add-client" class="btn btn-primary btn-sm">+ Novo Cliente</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Telefone</th>
+                                    <th>Usuário</th>
+                                    <th>Pontos Fidelidade</th>
+                                    <th>Saldo Cashback</th>
+                                    <th class="text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-clients-tbody">
+                                <!-- Preenchido via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    <!-- ==================== MODAIS ==================== -->
+    <!-- 1. Modal Validação de SMS (Cadastro) -->
+    <div id="sms-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Verificação de Segurança</h2>
+            </div>
+            <div class="modal-body">
+                <p>Enviamos um código de SMS de 4 dígitos para o número:</p>
+                <p class="sms-highlight-phone" id="sms-modal-phone">(00) 00000-0000</p>
+                
+                <div class="sms-code-input-container">
+                    <input type="text" class="sms-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+                    <input type="text" class="sms-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+                    <input type="text" class="sms-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+                    <input type="text" class="sms-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+                </div>
+                <!-- Simulador de recebimento de SMS para fins de protótipo -->
+                <div class="sms-simulator-alert">
+                    <span class="simulator-tag">SIMULADOR SMS</span>
+                    <p>Código gerado para testes: <strong id="sms-simulated-code">XXXX</strong></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="sms-btn-cancel" class="btn btn-outline">Cancelar</button>
+                <button id="sms-btn-verify" class="btn btn-primary">Confirmar</button>
+            </div>
+        </div>
+    </div>
+    <!-- 2. Modal Lançar Procedimento (Cashback + Ponto) -->
+    <div id="launch-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Lançar Procedimento</h2>
+                <button class="modal-close-x">&times;</button>
+            </div>
+            <form id="launch-form">
+                <input type="hidden" id="launch-client-id">
+                <div class="modal-body">
+                    <p class="modal-subtitle">Cliente: <strong id="launch-client-name">Carregando...</strong></p>
+                    <div class="input-group">
+                        <label for="launch-procedure">Procedimento realizado</label>
+                        <select id="launch-procedure" required>
+                            <option value="" disabled selected>Selecione um procedimento</option>
+                            <optgroup label="Cabelo">
+                                <option value="Escova">Escova</option>
+                                <option value="Escova + Prancha">Escova + Prancha</option>
+                                <option value="Hidratação">Hidratação</option>
+                                <option value="Nutrição">Nutrição</option>
+                                <option value="Reconstrução">Reconstrução</option>
+                                <option value="Corte">Corte</option>
+                            </optgroup>
+                            <optgroup label="Manicure">
+                                <option value="Manicure Tradicional">Manicure Tradicional</option>
+                                <option value="Pedicure Tradicional">Pedicure Tradicional</option>
+                                <option value="Pé + Mão">Pé + Mão</option>
+                                <option value="Esmaltação em Gel">Esmaltação em Gel</option>
+                                <option value="Molde Russo">Molde Russo</option>
+                                <option value="Molde F1">Molde F1</option>
+                                <option value="Fibra de Vidro">Fibra de Vidro</option>
+                            </optgroup>
+                            <optgroup label="Olhar">
+                                <option value="Design de Sobrancelhas">Design de Sobrancelhas</option>
+                                <option value="Design + Henna">Design + Henna</option>
+                                <option value="Lash Lifting">Lash Lifting</option>
+                                <option value="Brow Lamination">Brow Lamination</option>
+                                <option value="Extensão de Cílios">Extensão de Cílios</option>
+                                <option value="Manutenção">Manutenção</option>
+                            </optgroup>
+                            <optgroup label="Mega Hair">
+                                <option value="Aplicação Ponto Americano">Aplicação Ponto Americano</option>
+                                <option value="Queratina">Queratina</option>
+                                <option value="Fita Adesiva">Fita Adesiva</option>
+                                <option value="Coloração Mechas Loiras">Coloração Mechas Loiras</option>
+                                <option value="Morena Iluminada">Morena Iluminada</option>
+                                <option value="Coloração Raiz">Coloração Raiz</option>
+                                <option value="Coloração Global">Coloração Global</option>
+                            </optgroup>
+                            <optgroup label="Corpo &amp; Face">
+                                <option value="Microsobrancelha Fio">Microsobrancelha Fio</option>
+                                <option value="Remoção Sobrancelha">Remoção Sobrancelha</option>
+                                <option value="Remoção Tatuagem">Remoção Tatuagem</option>
+                                <option value="Botox">Botox</option>
+                                <option value="Preenchimento Olheira">Preenchimento Olheira</option>
+                            </optgroup>
+                            <option value="Outro Procedimento">Outro Procedimento (Especificar)</option>
+                        </select>
+                    </div>
+                    <div class="input-group hidden" id="custom-procedure-group">
+                        <label for="launch-custom-procedure">Nome do Procedimento Personalizado</label>
+                        <input type="text" id="launch-custom-procedure" placeholder="Digite o nome do procedimento">
+                    </div>
+                    <div class="input-group">
+                        <label for="launch-value">Valor Pago (R$)</label>
+                        <div class="quick-value-grid" id="quick-value-grid">
+                            <button type="button" class="quick-value-btn" data-value="50">R$ 50</button>
+                            <button type="button" class="quick-value-btn" data-value="80">R$ 80</button>
+                            <button type="button" class="quick-value-btn" data-value="100">R$ 100</button>
+                            <button type="button" class="quick-value-btn" data-value="150">R$ 150</button>
+                            <button type="button" class="quick-value-btn" data-value="200">R$ 200</button>
+                            <button type="button" class="quick-value-btn" id="btn-other-value">Outro valor</button>
+                        </div>
+                        <input type="number" id="launch-value" placeholder="ex: 150.00" min="0.01" step="0.01" required>
+                    </div>
+                    <!-- Configurações de Cashback -->
+                    <div class="input-group">
+                        <label>Taxa de Cashback (Beauty Coins)</label>
+                        <div class="cashback-options-grid">
+                            <label class="cashback-ratio-label">
+                                <input type="radio" name="cashback-ratio" value="0">
+                                <span class="cashback-ratio-box">0%</span>
+                            </label>
+                            <label class="cashback-ratio-label">
+                                <input type="radio" name="cashback-ratio" value="3">
+                                <span class="cashback-ratio-box">3%</span>
+                            </label>
+                            <label class="cashback-ratio-label">
+                                <input type="radio" name="cashback-ratio" value="5" checked>
+                                <span class="cashback-ratio-box">5%</span>
+                            </label>
+                            <label class="cashback-ratio-label">
+                                <input type="radio" name="cashback-ratio" value="7">
+                                <span class="cashback-ratio-box">7%</span>
+                            </label>
+                            <label class="cashback-ratio-label">
+                                <input type="radio" name="cashback-ratio" value="10">
+                                <span class="cashback-ratio-box">10%</span>
+                            </label>
+                            <label class="cashback-ratio-label">
+                                <input type="radio" name="cashback-ratio" value="custom" id="cashback-ratio-custom">
+                                <span class="cashback-ratio-box">Outro</span>
+                            </label>
+                        </div>
+                        <div class="hidden" id="custom-cashback-group" style="margin-top: 10px;">
+                            <label for="launch-custom-cashback">Porcentagem personalizada (%)</label>
+                            <input type="number" id="launch-custom-cashback" placeholder="ex: 4.5" min="0" max="100" step="0.01">
+                        </div>
+                    </div>
+                    <!-- Opções de Fidelidade -->
+                    <div class="checkbox-group">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="launch-add-point" checked>
+                            <span class="checkmark"></span>
+                            Adicionar +1 ponto no Cartão Fidelidade
+                        </label>
+                    </div>
+                    <!-- Opção de resgate se tiver 10 pontos -->
+                    <div class="checkbox-group hidden" id="launch-redeem-container">
+                        <label class="checkbox-container bonus-reward">
+                            <input type="checkbox" id="launch-redeem-bonus">
+                            <span class="checkmark"></span>
+                            <strong>🎁 Usar Bônus Fidelidade (Resgatar 10 pontos)</strong>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline modal-close-btn">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Lançamento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- 3. Modal Editar Cliente (Mestre) -->
+    <div id="edit-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Editar Cadastro do Cliente</h2>
+                <button class="modal-close-x">&times;</button>
+            </div>
+            <form id="edit-form">
+                <input type="hidden" id="edit-client-id">
+                <div class="modal-body">
+                    <div class="input-group">
+                        <label for="edit-name">Nome Completo</label>
+                        <input type="text" id="edit-name" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="edit-phone">Telefone (Celular)</label>
+                        <input type="tel" id="edit-phone" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="edit-username">Nome de Usuário (Login)</label>
+                        <input type="text" id="edit-username" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="edit-new-password">Nova Senha</label>
+                        <input type="text" id="edit-new-password" placeholder="Deixe em branco para manter a senha atual">
+                    </div>
+                    <div class="input-group">
+                        <label for="edit-points">Pontos Fidelidade Atuais (0 a 10)</label>
+                        <input type="number" id="edit-points" min="0" max="10" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="edit-cashback">Saldo de Cashback (R$)</label>
+                        <input type="number" id="edit-cashback" step="0.01" min="0" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline modal-close-btn">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- 4. Modal Novo Cliente (Admin adiciona manual) -->
+    <div id="add-client-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Novo Cliente</h2>
+                <button class="modal-close-x">&times;</button>
+            </div>
+            <form id="add-client-form">
+                <div class="modal-body">
+                    <div class="input-group">
+                        <label for="new-client-name">Nome Completo</label>
+                        <input type="text" id="new-client-name" placeholder="Digite o nome completo" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="new-client-phone">Telefone (Celular)</label>
+                        <input type="tel" id="new-client-phone" placeholder="(11) 99999-9999" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="new-client-username">Nome de Usuário (Login)</label>
+                        <input type="text" id="new-client-username" placeholder="Digite ou ajuste o usuário" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="new-client-password">Senha Provisória</label>
+                        <input type="text" id="new-client-password" placeholder="Digite a senha ou use o padrão" value="123456" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline modal-close-btn">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Criar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- 5. Modal Retirar/Resgatar Cashback (Admin lança saída no extrato do cliente) -->
+    <div id="withdraw-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Resgatar Cashback</h2>
+                <button class="modal-close-x">&times;</button>
+            </div>
+            <form id="withdraw-form">
+                <input type="hidden" id="withdraw-client-id">
+                <div class="modal-body">
+                    <p class="modal-subtitle">Cliente: <strong id="withdraw-client-name">Carregando...</strong></p>
+                    <p class="withdraw-balance">Saldo disponível: <strong id="withdraw-available-balance">R$ 0,00</strong></p>
+                    <div class="input-group">
+                        <label for="withdraw-value">Valor a Retirar (R$)</label>
+                        <input type="number" id="withdraw-value" placeholder="ex: 50.00" min="0.01" step="0.01" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="withdraw-note">Observação (opcional)</label>
+                        <input type="text" id="withdraw-note" placeholder="ex: Resgate na recepção">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline modal-close-btn">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Confirmar Retirada</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- 6. Modal Minha Conta (Admin troca o próprio usuário/senha) -->
+    <div id="admin-account-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Minha Conta (Administrador)</h2>
+                <button class="modal-close-x">&times;</button>
+            </div>
+            <form id="admin-account-form">
+                <div class="modal-body">
+                    <div class="input-group">
+                        <label for="admin-account-username">Nome de Usuário (Login)</label>
+                        <input type="text" id="admin-account-username" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="admin-account-password">Nova Senha</label>
+                        <input type="text" id="admin-account-password" placeholder="Deixe em branco para manter a senha atual">
+                    </div>
+                    <div class="input-group">
+                        <label for="admin-account-confirm-password">Confirmar Nova Senha</label>
+                        <input type="text" id="admin-account-confirm-password" placeholder="Repita a nova senha">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline modal-close-btn">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- Modal: Termos de Uso (aparece só no primeiro acesso, sem opção de fechar) -->
+    <div id="terms-modal" class="modal-overlay hidden">
+        <div class="modal-card" style="max-width: 560px;">
+            <div class="modal-header">
+                <h2>Termos de Uso e Privacidade</h2>
+            </div>
+            <div class="modal-body" style="max-height: 55vh; overflow-y: auto; font-size: 13px; line-height: 1.7; color: var(--text-secondary);">
+                <p><strong style="color: var(--text-primary);">1. Aceitação dos Termos</strong><br>
+                Ao acessar e utilizar este aplicativo, você concorda com os termos e condições descritos abaixo. Caso não concorde, não utilize o aplicativo.</p>
+                <p><strong style="color: var(--text-primary);">2. Programa de Fidelidade</strong><br>
+                Os pontos e o saldo de cashback (Beauty Coins) são benefícios oferecidos pelo Amies Studio Beauty, sem valor monetário fora do estabelecimento, não sendo transferíveis, reembolsáveis ou conversíveis em dinheiro.</p>
+                <p><strong style="color: var(--text-primary);">3. Uso de Dados Pessoais</strong><br>
+                Coletamos nome, telefone e histórico de procedimentos exclusivamente para gerenciar seu cadastro, seu cartão fidelidade e seu saldo de cashback. Seus dados não são vendidos ou compartilhados com terceiros para fins de marketing, em conformidade com a Lei Geral de Proteção de Dados (LGPD).</p>
+                <p><strong style="color: var(--text-primary);">4. Responsabilidades</strong><br>
+                Você é responsável por manter sua senha em sigilo e por todas as ações realizadas na sua conta. Notifique a recepção em caso de suspeita de uso indevido.</p>
+                <p><strong style="color: var(--text-primary);">5. Alterações</strong><br>
+                Estes termos podem ser atualizados periodicamente. O uso contínuo do aplicativo após alterações representa a aceitação dos novos termos.</p>
+            </div>
+            <div class="modal-footer">
+                <label class="checkbox-container" style="margin-right: auto; font-size: 12.5px;">
+                    <input type="checkbox" id="terms-accept-checkbox">
+                    <span class="checkmark"></span>
+                    Li e aceito os Termos de Uso
+                </label>
+                <button type="button" id="terms-accept-btn" class="btn btn-primary" disabled>Continuar</button>
+            </div>
+        </div>
+    </div>
+    <!-- Script principal -->
+    <script src="app.js"></script>
+</body>
+</html>
