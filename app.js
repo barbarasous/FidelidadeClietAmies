@@ -79,41 +79,242 @@ async function migrateDB(db) {
     return db;
 }
 
-// Carrega o banco de dados da nuvem (Supabase). Se ainda não existir, semeia com o padrão.
+// ==========================================================================
+// 1b. PROTEÇÃO E BACKUP DOS DADOS
+//     Camadas: (1) validação antes de gravar, (2) trava anti-perda em massa,
+//     (3) ponto de restauração na nuvem (tabela fidelidade_backups),
+//     (4) cópia local no navegador, (5) exportar/restaurar arquivo .json,
+//     (6) recuperação automática se o registro sumir ou ficar corrompido,
+//     (7) conferência da gravação logo após salvar.
+// ==========================================================================
+const BACKUP_TABLE = "fidelidade_backups";
+const LOCAL_BACKUP_KEY = "amies_fidelidade_local_backups_v1";
+const LOCAL_BACKUP_MAX = 15;                       // quantas cópias locais manter
+const LOCAL_BACKUP_MAX_CHARS = 2000000;            // limite de espaço no navegador
+const CLOUD_SNAPSHOT_MIN_INTERVAL_MS = 30 * 60 * 1000; // pontos automáticos: no máx. 1 a cada 30 min
+const CLOUD_SNAPSHOT_TS_KEY = "amies_fidelidade_last_cloud_snapshot";
+const LAST_EXPORT_KEY = "amies_fidelidade_last_file_export";
+
+let lastLoadedRaw = null;        // texto exato do banco como veio da nuvem (estado ANTES da próxima gravação)
+let lastKnownUserCount = null;   // nº de usuários na última leitura/gravação (trava anti-perda em massa)
+let lastLocalBackupRaw = null;
+
+function lsGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch { /* ignora */ } }
+
+function supabaseHeaders(extra = {}) {
+    return { apikey: AMIES_SUPABASE_KEY, Authorization: `Bearer ${AMIES_SUPABASE_KEY}`, ...extra };
+}
+
+function formatDateTime(d) {
+    const dt = d instanceof Date ? d : new Date(d);
+    return isNaN(dt) ? '-' : dt.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+// Confere se o objeto tem a estrutura mínima de um banco válido. Retorna null se OK, ou o motivo do problema.
+function validateDBShape(db) {
+    if (!db || typeof db !== 'object' || !Array.isArray(db.users)) return 'estrutura inválida (lista de usuários ausente)';
+    if (!db.users.every(u => u && typeof u === 'object' && u.id)) return 'há usuários sem identificador';
+    if (!db.users.some(u => u.role === 'master')) return 'usuário administrador não encontrado';
+    return null;
+}
+
+function sameData(a, b) {
+    try { return JSON.stringify(JSON.parse(a)) === JSON.stringify(JSON.parse(b)); } catch { return a === b; }
+}
+
+// ---------- Cópia local (neste navegador) ----------
+function readLocalBackups() {
+    try { return JSON.parse(lsGet(LOCAL_BACKUP_KEY)) || []; } catch { return []; }
+}
+
+function writeLocalBackup(raw, reason) {
+    if (!raw || raw === lastLocalBackupRaw) return;
+    try {
+        let list = readLocalBackups();
+        if (list.length && list[0].raw === raw) { lastLocalBackupRaw = raw; return; }
+        list.unshift({ savedAt: new Date().toISOString(), reason, raw });
+        list = list.slice(0, LOCAL_BACKUP_MAX);
+        while (list.length > 1 && JSON.stringify(list).length > LOCAL_BACKUP_MAX_CHARS) list.pop();
+        localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify(list));
+        lastLocalBackupRaw = raw;
+    } catch (e) { console.warn('Cópia local não pôde ser gravada:', e); }
+}
+
+// ---------- Acesso direto ao registro (sem travas) ----------
+async function rawPut(raw) {
+    const res = await fetch(`${AMIES_SUPABASE_URL}/rest/v1/${FIDELIDADE_TABLE}`, {
+        method: 'POST',
+        headers: supabaseHeaders({ 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' }),
+        body: JSON.stringify({ key: FIDELIDADE_KEY, value: raw })
+    });
+    if (!res.ok) throw new Error('Não foi possível salvar os dados na nuvem. Verifique sua internet.');
+}
+
+async function fetchCurrentRaw() {
+    try {
+        const res = await fetch(`${AMIES_SUPABASE_URL}/rest/v1/${FIDELIDADE_TABLE}?key=eq.${FIDELIDADE_KEY}&select=value`, { headers: supabaseHeaders() });
+        if (!res.ok) return null;
+        const rows = await res.json();
+        return Array.isArray(rows) && rows.length ? rows[0].value : null;
+    } catch { return null; }
+}
+
+// ---------- Pontos de restauração na nuvem ----------
+async function createCloudSnapshot(raw, reason, { force = false } = {}) {
+    if (!raw) return false;
+    const last = parseInt(lsGet(CLOUD_SNAPSHOT_TS_KEY) || '0', 10);
+    if (!force && Date.now() - last < CLOUD_SNAPSHOT_MIN_INTERVAL_MS) return true; // já existe um ponto recente
+    let userCount = null;
+    try { userCount = JSON.parse(raw).users.length; } catch { /* texto corrompido: segue sem contagem */ }
+    try {
+        const res = await fetch(`${AMIES_SUPABASE_URL}/rest/v1/${BACKUP_TABLE}`, {
+            method: 'POST',
+            headers: supabaseHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
+            body: JSON.stringify({ key: FIDELIDADE_KEY, reason, user_count: userCount, value: raw })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        lsSet(CLOUD_SNAPSHOT_TS_KEY, String(Date.now()));
+        return true;
+    } catch (err) {
+        console.warn('Backup na nuvem falhou:', err);
+        return false;
+    }
+}
+
+async function listCloudSnapshots(limit = 20) {
+    const res = await fetch(`${AMIES_SUPABASE_URL}/rest/v1/${BACKUP_TABLE}?key=eq.${FIDELIDADE_KEY}&select=id,created_at,reason,user_count&order=created_at.desc&limit=${limit}`, { headers: supabaseHeaders() });
+    if (!res.ok) throw new Error('Tabela de backup indisponível.');
+    return await res.json();
+}
+
+async function fetchSnapshotRaw(id) {
+    const res = await fetch(`${AMIES_SUPABASE_URL}/rest/v1/${BACKUP_TABLE}?id=eq.${encodeURIComponent(id)}&select=value`, { headers: supabaseHeaders() });
+    if (!res.ok) return null;
+    const rows = await res.json();
+    return rows.length ? rows[0].value : null;
+}
+
+// Escolhe o backup válido mais recente entre a cópia local e os pontos da nuvem
+async function findBestBackup() {
+    const items = readLocalBackups()
+        .filter(b => b.reason !== 'corrompido')
+        .map(b => ({ at: new Date(b.savedAt), raw: b.raw }));
+    try {
+        const list = await listCloudSnapshots(15);
+        list.filter(s => s.reason !== 'corrompido').forEach(s => items.push({ at: new Date(s.created_at), id: s.id }));
+    } catch { /* sem tabela de backup: usa só o local */ }
+
+    items.sort((a, b) => b.at - a.at);
+    for (const it of items) {
+        try {
+            const raw = it.raw || await fetchSnapshotRaw(it.id);
+            if (raw && !validateDBShape(JSON.parse(raw))) return { at: it.at, raw };
+        } catch { /* tenta o próximo */ }
+    }
+    return null;
+}
+
+function registerLoaded(raw, db) {
+    lastLoadedRaw = raw;
+    lastKnownUserCount = db.users.length;
+    writeLocalBackup(raw, 'leitura');
+}
+
+// Recuperação automática: o registro sumiu ou está corrompido. NUNCA sobrescreve sem antes preservar o que existe.
+async function healFromBackup(corruptRaw) {
+    try {
+        if (corruptRaw) {
+            const kept = await createCloudSnapshot(corruptRaw, 'corrompido', { force: true });
+            if (!kept) return null; // não conseguiu guardar o original: não mexe em nada
+        }
+        const best = await findBestBackup();
+        if (!best) return null;
+        await rawPut(best.raw);
+        const db = JSON.parse(best.raw);
+        registerLoaded(best.raw, db);
+        showToast(`Dados restaurados automaticamente do backup de ${formatDateTime(best.at)}.`, 'info');
+        return db;
+    } catch (e) {
+        console.error('Falha na recuperação automática:', e);
+        return null;
+    }
+}
+
+// ---------- Leitura e gravação principais ----------
+
+// Carrega o banco de dados da nuvem (Supabase).
+// Se o registro não existir, tenta recuperar de um backup; só semeia o padrão se NÃO houver nenhum backup.
 async function getDB() {
     try {
         if (AMIES_SUPABASE_URL.includes('COLE_AQUI') || AMIES_SUPABASE_KEY.includes('COLE_AQUI')) {
             throw new Error('CONFIG_PENDENTE: cole a URL e a chave do Supabase no início do arquivo app.js.');
         }
-        const res = await fetch(`${AMIES_SUPABASE_URL}/rest/v1/${FIDELIDADE_TABLE}?key=eq.${FIDELIDADE_KEY}&select=value`, {
-            headers: { apikey: AMIES_SUPABASE_KEY, Authorization: `Bearer ${AMIES_SUPABASE_KEY}` }
-        });
+        const res = await fetch(`${AMIES_SUPABASE_URL}/rest/v1/${FIDELIDADE_TABLE}?key=eq.${FIDELIDADE_KEY}&select=value`, { headers: supabaseHeaders() });
         if (!res.ok) throw new Error('Não foi possível carregar os dados da nuvem. Verifique sua internet.');
         const rows = await res.json();
+        if (!Array.isArray(rows)) throw new Error('Resposta inesperada do banco. Nenhum dado foi alterado.');
+
         if (rows.length === 0) {
-            await saveDB(defaultDB);
-            return JSON.parse(JSON.stringify(defaultDB));
+            const healed = await healFromBackup(null);
+            if (healed) return await migrateDB(healed);
+            // Nenhum backup existe em lugar nenhum: é a primeiríssima execução
+            const seedRaw = JSON.stringify(defaultDB);
+            await rawPut(seedRaw);
+            const seeded = JSON.parse(seedRaw);
+            registerLoaded(seedRaw, seeded);
+            return seeded;
         }
-        return await migrateDB(JSON.parse(rows[0].value));
+
+        const raw = rows[0].value;
+        let parsed = null;
+        let problem = null;
+        try { parsed = JSON.parse(raw); problem = validateDBShape(parsed); } catch { problem = 'conteúdo ilegível'; }
+        if (problem) {
+            const healed = await healFromBackup(raw);
+            if (healed) return await migrateDB(healed);
+            throw new Error(`Os dados na nuvem estão inconsistentes (${problem}) e não foi possível recuperar. Nada foi apagado ou alterado.`);
+        }
+
+        registerLoaded(raw, parsed);
+        return await migrateDB(parsed);
     } catch (err) {
         showToast(err.message || 'Erro ao conectar com o banco de dados na nuvem.', 'error');
         throw err;
     }
 }
 
-// Salva o banco de dados inteiro na nuvem (Supabase)
-async function saveDB(db) {
-    const res = await fetch(`${AMIES_SUPABASE_URL}/rest/v1/${FIDELIDADE_TABLE}`, {
-        method: 'POST',
-        headers: {
-            apikey: AMIES_SUPABASE_KEY,
-            Authorization: `Bearer ${AMIES_SUPABASE_KEY}`,
-            'Content-Type': 'application/json',
-            Prefer: 'resolution=merge-duplicates'
-        },
-        body: JSON.stringify({ key: FIDELIDADE_KEY, value: JSON.stringify(db) })
-    });
-    if (!res.ok) throw new Error('Não foi possível salvar os dados na nuvem. Verifique sua internet.');
+// Salva o banco de dados inteiro na nuvem (Supabase), com proteções.
+// opts: { reason, forceSnapshot (exige ponto de restauração antes), allowShrink (permite diminuir nº de usuários) }
+async function saveDB(db, opts = {}) {
+    const reason = opts.reason || 'auto';
+
+    const problem = validateDBShape(db);
+    if (problem) throw new Error(`Gravação bloqueada para proteger seus dados: ${problem}.`);
+
+    if (!opts.allowShrink && lastKnownUserCount !== null && db.users.length < lastKnownUserCount) {
+        throw new Error('Gravação bloqueada: a lista de usuários diminuiu de forma inesperada. Recarregue a página e tente de novo.');
+    }
+
+    // Guarda o estado ANTERIOR (o que está na nuvem agora) antes de sobrescrevê-lo
+    if (lastLoadedRaw) {
+        const covered = await createCloudSnapshot(lastLoadedRaw, reason, { force: !!opts.forceSnapshot });
+        if (opts.forceSnapshot && !covered) {
+            throw new Error('Não foi possível criar o backup na nuvem antes desta operação, então ela foi cancelada para proteger seus dados. (Se for a primeira vez, rode o script backup.sql no Supabase.)');
+        }
+    }
+
+    const raw = JSON.stringify(db);
+    await rawPut(raw);
+    lastLoadedRaw = raw;
+    lastKnownUserCount = db.users.length;
+    writeLocalBackup(raw, 'gravacao');
+
+    // Conferência: lê de volta e compara
+    const back = await fetchCurrentRaw();
+    if (back !== null && !sameData(back, raw)) {
+        showToast('Atenção: não foi possível confirmar a gravação na nuvem. Confira se os dados aparecem corretamente.', 'error');
+    }
 }
 
 // Evita XSS: nunca insira texto vindo do usuário direto no HTML sem escapar
@@ -299,6 +500,7 @@ async function enterApp(user) {
     if (user.role === 'master') {
         await renderAdminDashboard();
         showScreen('admin-screen');
+        maybeRemindBackup();
     } else {
         await renderClientDashboard();
         showScreen('client-screen');
@@ -696,11 +898,11 @@ async function deleteClient(clientId) {
     const client = appDB.users.find(u => u.id === clientId);
     if (!client) return;
     
-    const confirmDelete = confirm(`Deseja realmente EXCLUIR o cadastro da cliente "${client.name}"?\nEsta ação apagará todo o histórico de pontos e cashback permanentemente.`);
+    const confirmDelete = confirm(`Deseja realmente EXCLUIR o cadastro da cliente "${client.name}"?\nEsta ação apagará todo o histórico de pontos e cashback.\nUm ponto de restauração será criado antes, caso precise recuperar.`);
     
     if (confirmDelete) {
         appDB.users = appDB.users.filter(u => u.id !== clientId);
-        try { await saveDB(appDB); } catch (err) { showToast(err.message, 'error'); return; }
+        try { await saveDB(appDB, { reason: 'antes-excluir-cliente', forceSnapshot: true, allowShrink: true }); } catch (err) { showToast(err.message, 'error'); return; }
         showToast(`Cliente ${client.name} excluída com sucesso!`, 'success');
         await renderAdminDashboard();
     }
@@ -862,7 +1064,7 @@ document.getElementById('edit-form').addEventListener('submit', async (e) => {
         appDB.users[clientIdx].points = points;
         appDB.users[clientIdx].cashback = cashback;
         
-        try { await saveDB(appDB); } catch (err) { showToast(err.message, 'error'); return; }
+        try { await saveDB(appDB, { reason: 'antes-editar-cliente', forceSnapshot: true }); } catch (err) { showToast(err.message, 'error'); return; }
         showToast('Cadastro de cliente atualizado!');
         closeModal('edit-modal');
         await renderAdminDashboard();
@@ -1157,6 +1359,214 @@ document.getElementById('admin-account-form').addEventListener('submit', async (
 
 
 // ==========================================================================
+// 7d. PAINEL DE BACKUP E RESTAURAÇÃO (Administrador)
+// ==========================================================================
+
+const BACKUP_REASON_LABELS = {
+    'auto': 'Automático',
+    'trigger': 'Automático (banco)',
+    'trigger-delete': 'Registro apagado no banco',
+    'manual': 'Manual',
+    'antes-excluir-cliente': 'Antes de excluir cliente',
+    'antes-editar-cliente': 'Antes de editar cliente',
+    'antes-de-restaurar': 'Antes de restaurar',
+    'corrompido': 'Dados corrompidos (preservado)'
+};
+
+// Baixa o banco inteiro como arquivo .json
+function downloadBackupFile(raw) {
+    const now = new Date();
+    const stamp = `${getTodayDateString()}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+    const payload = { app: 'amies-fidelidade', version: 1, exportedAt: now.toISOString(), data: JSON.parse(raw) };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `amies-fidelidade-backup-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    lsSet(LAST_EXPORT_KEY, String(Date.now()));
+}
+
+// Substitui os dados atuais por um backup (texto JSON). Antes, guarda o estado atual.
+async function restoreFromRaw(rawText, label) {
+    let parsed;
+    try { parsed = JSON.parse(rawText); } catch { throw new Error('Arquivo inválido: não é um JSON legível.'); }
+    if (parsed && parsed.app === 'amies-fidelidade' && parsed.data) parsed = parsed.data; // formato de exportação
+    const problem = validateDBShape(parsed);
+    if (problem) throw new Error(`Backup inválido: ${problem}.`);
+
+    const clients = parsed.users.filter(u => u.role === 'client').length;
+    if (!confirm(`Restaurar "${label}"?\n\nEste backup contém ${clients} cliente(s).\nOs dados ATUAIS serão guardados em um ponto de restauração antes de serem substituídos.`)) return false;
+
+    const current = await fetchCurrentRaw();
+    if (current) {
+        writeLocalBackup(current, 'antes-de-restaurar');
+        const ok = await createCloudSnapshot(current, 'antes-de-restaurar', { force: true });
+        if (!ok && !confirm('Não foi possível criar o ponto de restauração na nuvem do estado atual.\nContinuar mesmo assim?')) return false;
+    }
+
+    const raw = JSON.stringify(parsed);
+    await rawPut(raw);
+    registerLoaded(raw, parsed);
+    return true;
+}
+
+async function afterRestoreRefresh() {
+    appDB = await getDB();
+    const me = appDB.users.find(u => u.id === currentUser.id);
+    closeModal('backup-modal');
+    if (!me) {
+        logout();
+        showToast('Dados restaurados. Faça login novamente.', 'info');
+        return;
+    }
+    currentUser = me;
+    sessionStorage.setItem('amies_session_user', JSON.stringify(currentUser));
+    showToast('Dados restaurados com sucesso!');
+    await renderAdminDashboard();
+}
+
+function ensureBackupModal() {
+    if (document.getElementById('backup-modal')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'backup-modal';
+    overlay.className = 'modal-overlay hidden';
+    overlay.innerHTML = `
+        <div class="modal-card" style="max-width:580px;">
+            <div class="modal-header">
+                <h2>💾 Backup e Restauração</h2>
+                <button type="button" class="modal-close-x" aria-label="Fechar">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-subtitle" id="backup-status">Carregando…</p>
+                <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
+                    <button type="button" class="btn btn-primary btn-block" id="backup-download-btn">⬇️ Baixar backup agora (arquivo .json)</button>
+                    <button type="button" class="btn btn-outline btn-block" id="backup-cloud-btn">☁️ Criar ponto de restauração na nuvem</button>
+                </div>
+                <h3 style="font-size:16px;margin-bottom:10px;">Restaurar de um arquivo</h3>
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:24px;">
+                    <input type="file" id="backup-file-input" accept="application/json,.json" style="flex:1;font-size:13px;">
+                    <button type="button" class="btn btn-outline btn-sm" id="backup-file-restore-btn">Restaurar</button>
+                </div>
+                <h3 style="font-size:16px;margin-bottom:10px;">Pontos de restauração na nuvem</h3>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead><tr><th>Data</th><th>Origem</th><th>Usuários</th><th></th></tr></thead>
+                        <tbody id="backup-cloud-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline modal-close-btn">Fechar</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal('backup-modal'); });
+    overlay.querySelectorAll('.modal-close-x, .modal-close-btn').forEach(b => b.addEventListener('click', () => closeModal('backup-modal')));
+
+    document.getElementById('backup-download-btn').addEventListener('click', async () => {
+        const raw = await fetchCurrentRaw();
+        if (!raw) { showToast('Não foi possível ler os dados da nuvem para gerar o backup.', 'error'); return; }
+        try {
+            downloadBackupFile(raw);
+            showToast('Backup baixado! Guarde o arquivo em local seguro (Drive, e-mail ou pen drive).');
+            refreshBackupPanel();
+        } catch (err) { showToast('Falha ao gerar o arquivo de backup.', 'error'); }
+    });
+
+    document.getElementById('backup-cloud-btn').addEventListener('click', async () => {
+        const raw = await fetchCurrentRaw();
+        if (!raw) { showToast('Não foi possível ler os dados da nuvem.', 'error'); return; }
+        const ok = await createCloudSnapshot(raw, 'manual', { force: true });
+        if (ok) { showToast('Ponto de restauração criado na nuvem!'); refreshBackupPanel(); }
+        else showToast('Não foi possível criar o ponto de restauração. Rode o script backup.sql no Supabase.', 'error');
+    });
+
+    document.getElementById('backup-file-restore-btn').addEventListener('click', async () => {
+        const file = document.getElementById('backup-file-input').files[0];
+        if (!file) { showToast('Escolha primeiro um arquivo de backup (.json).', 'error'); return; }
+        try {
+            const text = await file.text();
+            if (await restoreFromRaw(text, `arquivo ${file.name}`)) await afterRestoreRefresh();
+        } catch (err) { showToast(err.message, 'error'); }
+    });
+
+    document.getElementById('backup-cloud-tbody').addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-snap-id]');
+        if (!btn) return;
+        try {
+            const raw = await fetchSnapshotRaw(btn.getAttribute('data-snap-id'));
+            if (!raw) throw new Error('Não foi possível ler este ponto de restauração.');
+            if (await restoreFromRaw(raw, `ponto de ${btn.getAttribute('data-snap-label')}`)) await afterRestoreRefresh();
+        } catch (err) { showToast(err.message, 'error'); }
+    });
+}
+
+async function refreshBackupPanel() {
+    const status = document.getElementById('backup-status');
+    const tbody = document.getElementById('backup-cloud-tbody');
+    const local = readLocalBackups();
+    const lastExport = parseInt(lsGet(LAST_EXPORT_KEY) || '0', 10);
+    status.innerHTML = `Cópia local neste aparelho: <strong>${local.length ? formatDateTime(local[0].savedAt) : 'nenhuma'}</strong><br>` +
+                       `Último arquivo baixado: <strong>${lastExport ? formatDateTime(lastExport) : 'nunca'}</strong>`;
+    tbody.innerHTML = `<tr><td colspan="4" class="empty-state">Carregando…</td></tr>`;
+    try {
+        const list = await listCloudSnapshots(20);
+        if (list.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="empty-state">Nenhum ponto de restauração ainda.</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = '';
+        list.forEach(s => {
+            const tr = document.createElement('tr');
+            const when = formatDateTime(s.created_at);
+            tr.innerHTML = `
+                <td>${escapeHtml(when)}</td>
+                <td>${escapeHtml(BACKUP_REASON_LABELS[s.reason] || s.reason)}</td>
+                <td>${s.user_count ?? '-'}</td>
+                <td class="text-right"><button type="button" class="btn btn-outline btn-sm" data-snap-id="${escapeHtml(String(s.id))}" data-snap-label="${escapeHtml(when)}">Restaurar</button></td>`;
+            tbody.appendChild(tr);
+        });
+    } catch {
+        tbody.innerHTML = `<tr><td colspan="4" class="empty-state">Backup na nuvem indisponível. Execute o script <strong>backup.sql</strong> no Supabase (SQL Editor).</td></tr>`;
+    }
+}
+
+async function openBackupModal() {
+    ensureBackupModal();
+    openModal('backup-modal');
+    await refreshBackupPanel();
+}
+
+// Cria o botão "Backup" ao lado de "Novo Cliente" (sem precisar alterar o index.html)
+function installBackupButton() {
+    const addBtn = document.getElementById('btn-add-client');
+    if (!addBtn || document.getElementById('btn-backup')) return;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.id = 'btn-backup';
+    b.className = 'btn btn-outline';
+    b.textContent = '💾 Backup';
+    b.addEventListener('click', openBackupModal);
+    addBtn.parentNode.insertBefore(b, addBtn);
+}
+
+// Lembrete se faz mais de 7 dias que nenhum arquivo de backup foi baixado
+function maybeRemindBackup() {
+    const last = parseInt(lsGet(LAST_EXPORT_KEY) || '0', 10);
+    const days = (Date.now() - last) / 86400000;
+    if (last && days < 7) return;
+    setTimeout(() => showToast(
+        last ? `Faz ${Math.floor(days)} dias que você não baixa um backup. Use o botão 💾 Backup.`
+             : 'Você ainda não baixou nenhum arquivo de backup. Use o botão 💾 Backup.', 'info'), 1500);
+}
+
+
+// ==========================================================================
 // 8. CONFIGURAÇÕES GERAIS E ATIVAÇÕES NA INICIALIZAÇÃO
 // ==========================================================================
 
@@ -1164,6 +1574,7 @@ document.getElementById('admin-account-form').addEventListener('submit', async (
 applyPhoneMask(document.getElementById('signup-phone'));
 applyPhoneMask(document.getElementById('edit-phone'));
 applyPhoneMask(document.getElementById('new-client-phone'));
+installBackupButton();
 
 // Sugere automaticamente um nome de usuário a partir do nome digitado (se o campo ainda estiver vazio)
 document.getElementById('signup-name').addEventListener('blur', () => {
@@ -1202,6 +1613,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (currentUser.role === 'master') {
                 await renderAdminDashboard();
                 showScreen('admin-screen');
+                maybeRemindBackup();
             } else {
                 await renderClientDashboard();
                 showScreen('client-screen');
